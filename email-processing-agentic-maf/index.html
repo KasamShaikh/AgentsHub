@@ -309,6 +309,73 @@
       </div>
     </section>
 
+    <section class="card">
+      <h2>🧑‍⚖️ How human-in-the-loop works (for business)</h2>
+      <div class="body">
+        <svg class="arch" viewBox="0 0 960 540" role="img" aria-label="Human-in-the-loop business flow diagram">
+          <defs>
+            <linearGradient id="og2" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#7A0F3E"/><stop offset="1" stop-color="#E5007D"/>
+            </linearGradient>
+            <marker id="ah2" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+              <path d="M0,0 L7,3 L0,6 Z" fill="#b56b90"/>
+            </marker>
+          </defs>
+
+          <rect class="bx" x="355" y="20" width="250" height="50" rx="12"/>
+          <text class="t" x="480" y="50" text-anchor="middle">📧 Email arrives</text>
+          <path class="ln" d="M480,70 V102" marker-end="url(#ah2)"/>
+          <text class="lbl" x="490" y="90">every item</text>
+
+          <rect x="300" y="104" width="360" height="66" rx="14" fill="url(#og2)"/>
+          <text x="480" y="130" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">🤖 AI does the work</text>
+          <text x="480" y="148" text-anchor="middle" fill="#fff" font-size="11" opacity=".9">reads · checks · compares · prepares</text>
+          <text x="480" y="163" text-anchor="middle" fill="#fff" font-size="11" opacity=".9">routine items flow straight through</text>
+
+          <path class="ln" d="M480,170 V198 H165 V236" marker-end="url(#ah2)"/>
+          <text class="lbl" x="250" y="192" text-anchor="middle">unusual case</text>
+          <path class="ln" d="M480,170 V236" marker-end="url(#ah2)"/>
+          <text class="lbl" x="556" y="192" text-anchor="middle">needs sign-off</text>
+          <path class="ln" d="M480,170 V198 H795 V236" marker-end="url(#ah2)"/>
+          <text class="lbl" x="712" y="192" text-anchor="middle">final step</text>
+
+          <rect x="30" y="238" width="270" height="74" rx="12" fill="#e8f7ef" stroke="#1a8f5e" stroke-width="1.5"/>
+          <text x="165" y="264" text-anchor="middle" style="fill:#0f5c3c;font-weight:700;font-size:14px">🟢 Exception check</text>
+          <text class="s" x="165" y="284" text-anchor="middle">Bother a human ONLY when</text>
+          <text class="s" x="165" y="299" text-anchor="middle">something looks off (most skip)</text>
+
+          <rect x="345" y="238" width="270" height="74" rx="12" fill="#fbf1e0" stroke="#b5740f" stroke-width="1.5"/>
+          <text x="480" y="264" text-anchor="middle" style="fill:#8a5709;font-weight:700;font-size:14px">🟠 Manager review</text>
+          <text class="s" x="480" y="284" text-anchor="middle">A person approves / rejects ·</text>
+          <text class="s" x="480" y="299" text-anchor="middle">can pause for hours–days, then resumes</text>
+
+          <rect x="660" y="238" width="270" height="74" rx="12" fill="#fdeaf4" stroke="#E5007D" stroke-width="1.5"/>
+          <text x="795" y="264" text-anchor="middle" style="fill:#97144D;font-weight:700;font-size:14px">🔴 Final sign-off</text>
+          <text class="s" x="795" y="284" text-anchor="middle">Quick confirm before the</text>
+          <text class="s" x="795" y="299" text-anchor="middle">one irreversible save</text>
+
+          <path class="ln" d="M165,312 V336" marker-end="url(#ah2)"/>
+          <path class="ln" d="M480,312 V336" marker-end="url(#ah2)"/>
+          <path class="ln" d="M795,312 V336" marker-end="url(#ah2)"/>
+
+          <rect class="bx" x="40" y="338" width="250" height="46" rx="12"/>
+          <text class="t" x="165" y="366" text-anchor="middle">👤 Approve / Reject</text>
+          <rect class="bx" x="355" y="338" width="250" height="46" rx="12"/>
+          <text class="t" x="480" y="366" text-anchor="middle">👤 Approve / Reject / Edit</text>
+          <rect class="bx" x="670" y="338" width="250" height="46" rx="12"/>
+          <text class="t" x="795" y="366" text-anchor="middle">👤 Approve / Reject</text>
+
+          <rect x="270" y="454" width="420" height="58" rx="14" fill="#e8f7ef" stroke="#1a8f5e" stroke-width="1.5"/>
+          <text class="t" x="480" y="480" text-anchor="middle">✅ Saved to core system</text>
+          <text class="s" x="480" y="498" text-anchor="middle">full audit trail — who · when · why</text>
+          <path class="ln" d="M165,384 V442 H400 V452" marker-end="url(#ah2)"/>
+          <path class="ln" d="M480,384 V452" marker-end="url(#ah2)"/>
+          <path class="ln" d="M795,384 V442 H560 V452" marker-end="url(#ah2)"/>
+        </svg>
+        <p class="meta" style="margin-top:10px">Read it left-to-right: the <b>AI prepares every item</b>, then routes by risk. 🟢 <b>Exception check</b> pulls in a human only for odd cases (most items skip it). 🟠 <b>Manager review</b> is a durable sign-off that can wait hours or days and resume where it left off. 🔴 <b>Final sign-off</b> is a quick yes/no before the one irreversible step. <b>Speed where it's safe, control where it matters</b> — every decision is logged for audit.</p>
+      </div>
+    </section>
+
     <section class="card" id="hitlMock">
       <h2>🧑‍⚖️ Human-in-the-loop · unified review queue <span style="font-size:10px;font-weight:700;background:#fdf2f7;border:1px solid var(--line);color:var(--maroon-deep);padding:3px 9px;border-radius:20px;letter-spacing:.4px;text-transform:none">visual mock</span></h2>
       <div class="body">
