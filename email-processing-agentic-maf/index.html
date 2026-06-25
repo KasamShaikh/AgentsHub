@@ -116,8 +116,9 @@
         orchestrator classifies the email, a <b>human-in-the-loop gate</b> pauses the run natively
         (<code>request_info</code>) for approval, then switch-case routing hands off to the specialist executor that
         runs the deterministic pipeline. Tools are invoked <b>automatically</b> by the framework (e.g. the contract
-        agent's <code>lookup_isin</code> security-master lookup), and the workflow checkpoints durably so a paused
-        review can resume later. There is no server-side <code>threads</code>/<code>runs</code> object and no manual
+        agent's <code>lookup_isin</code> security-master lookup), and the workflow writes a file-backed checkpoint
+        after each step while the paused review is held open in-process (it auto-decides after a timeout so nothing
+        hangs). There is no server-side <code>threads</code>/<code>runs</code> object and no manual
         tool-output plumbing. This is a separate copy of the app; the original v1 deployment and its Azure resources
         are left exactly as they are.</div>
       </div>
@@ -174,12 +175,13 @@
 
           <!-- onboarding lane -->
           <rect class="bx" x="345" y="232" width="270" height="54" rx="12"/>
-          <text class="t" x="480" y="256" text-anchor="middle">Pre-Onboarding Agent</text>
-          <text class="s" x="480" y="272" text-anchor="middle">extract merchant fields</text>
+          <text class="t" x="480" y="252" text-anchor="middle">Document Intelligence · OCR</text>
+          <text class="s" x="480" y="270" text-anchor="middle">both forms → text</text>
           <rect class="bx" x="345" y="304" width="270" height="46" rx="12"/>
           <text class="t" x="480" y="332" text-anchor="middle">Form Comparison Agent</text>
           <rect class="bx" x="345" y="366" width="270" height="46" rx="12"/>
-          <text class="t" x="480" y="394" text-anchor="middle">Form Verification Agent</text>
+          <text class="t" x="480" y="388" text-anchor="middle">Deterministic scorer</text>
+          <text class="s" x="480" y="403" text-anchor="middle">match % · thresholds</text>
           <path class="ln" d="M480,286 V304" marker-end="url(#ah)"/>
           <path class="ln" d="M480,350 V366" marker-end="url(#ah)"/>
 
@@ -212,7 +214,8 @@
           in-process <code>Agent</code> objects with their own instructions and tools, wired into a true MAF
           <b>Workflow</b> graph (executors + switch-case edges). The framework invokes real tools automatically
           (e.g. the contract agent's <code>lookup_isin</code>), and the workflow pauses natively for human approval
-          via <code>request_info</code> with durable checkpointing. The model is still served by Foundry
+          via <code>request_info</code>, checkpointing each superstep to file-backed storage
+          (<code>FileCheckpointStorage</code>). The model is still served by Foundry
           <code>gpt-mini-ks</code>.</p>
           <p><b>OCR:</b> <b>Azure AI Document Intelligence</b> (<code>prebuilt-layout</code>, markdown output) turns scanned
           PDFs and images into text the agents can read.</p>
@@ -241,12 +244,11 @@
           <tbody>
             <tr><td><b>orchestrator-ks</b></td><td>Reads each email and classifies its intent (contract note / merchant pre-onboarding / manual). The MAF workflow graph then routes to the right specialist.</td><td>none (classification only)</td></tr>
             <tr><td><b>contract-note-ks</b></td><td>Extracts trades from broker contract-note attachments, resolves security identifiers, and produces the pipe-delimited upload file.</td><td>real MAF tool <code>lookup_isin</code> (NSE/BSE security master)</td></tr>
-            <tr><td><b>pre-onboarding-ks</b></td><td>Reads merchant onboarding documents and extracts KYC, registration, address and bank fields.</td><td>none (pure extraction)</td></tr>
-            <tr><td><b>form-compare-ks</b></td><td>Aligns two versions of a merchant form (web-portal vs handwritten) field-by-field for cross-verification.</td><td>none</td></tr>
-            <tr><td><b>form-verification-ks</b></td><td>Validates extracted fields — required-field and format/regex checks — and returns a pass/fail verdict.</td><td>in-process agent</td></tr>
-            <tr><td><b>manual-intervention-ks</b></td><td>Flags anything that doesn’t fit an automated path and routes it for a human.</td><td>none</td></tr>
+            <tr><td><b>form-compare-ks</b></td><td>The onboarding specialist: OCRs both merchant forms (web-portal vs handwritten) and <i>aligns</i> the fields so a deterministic scorer can compute the match.</td><td>none</td></tr>
+            <tr><td><b>manual-intervention-ks</b></td><td>Handles anything that doesn’t fit an automated path — drafts a reply / routes it for a human.</td><td>none</td></tr>
           </tbody>
         </table>
+        <p class="meta" style="margin-top:10px">These four executors are the ones the workflow graph actually runs. Two further prompts ship in the repo — <code>pre_onboarding.md</code> and <code>form_verification.md</code> — for a future multi-step onboarding flow, but they are not wired into the current graph.</p>
       </div>
     </section>
 
@@ -257,7 +259,7 @@
           <li><b>Email arrives</b> A new mail hits the Office 365 inbox and triggers the <code>logic-email-ks</code> Logic App.</li>
           <li><b>Ingest &amp; stage</b> The Logic App saves each attachment to the <code>incoming-attachments</code> blob container and composes a JSON payload (subject, body, blob paths).</li>
           <li><b>Classify intent</b> The in-process <b>Microsoft Agent Framework</b> orchestrator executor (<code>gpt-mini-ks</code>) reads the payload and classifies it: <code>contract_note</code>, <code>pre_onboarding</code> or <code>manual</code>.</li>
-          <li><b>Human-in-the-loop gate</b> The workflow pauses natively (<code>request_info</code>) at an approval gate — level by risk (🔴 L1 contract note · 🟠 L2 onboarding · 🟢 L3 manual). A reviewer can approve, reject or re-route from the dashboard; durable checkpointing lets the run wait and resume, and it auto-decides after a timeout so nothing hangs.</li>
+          <li><b>Human-in-the-loop gate</b> The workflow pauses natively (<code>request_info</code>) at <b>one</b> approval gate, its level set by the intent (🔴 L1 contract note · 🟠 L2 onboarding · 🟢 L3 manual). A reviewer can approve, reject or re-route from the dashboard; the run is held open — and checkpointed to file-backed storage each step — until a human decides, then auto-decides after the review window (≈15 min in the UI) so nothing hangs.</li>
           <li><b>Route to a specialist</b> On approval, switch-case edges hand the work to the matching specialist executor — the model decides the intent, the workflow graph decides the wiring.</li>
           <li><b>Do the work</b> &nbsp;• <b>Contract note:</b> OCR → extract trades → resolve identifiers → build the pipe-delimited file.<br>&nbsp;• <b>Onboarding (demo):</b> OCR both forms → agent aligns fields → deterministic scorer computes match % and flags mismatches.</li>
           <li><b>Write output</b> The result lands in the <code>contract-notes-output</code> container (a <code>.txt</code> report + machine <code>.json</code>).</li>
@@ -354,7 +356,7 @@
           <rect x="345" y="238" width="270" height="74" rx="12" fill="#fbf1e0" stroke="#b5740f" stroke-width="1.5"/>
           <text x="480" y="264" text-anchor="middle" style="fill:#8a5709;font-weight:700;font-size:14px">🟠 Manager review</text>
           <text class="s" x="480" y="284" text-anchor="middle">A person approves / rejects ·</text>
-          <text class="s" x="480" y="299" text-anchor="middle">can pause for hours–days, then resumes</text>
+          <text class="s" x="480" y="299" text-anchor="middle">held for a human · auto-approves on timeout</text>
 
           <rect x="660" y="238" width="270" height="74" rx="12" fill="#fdeaf4" stroke="#E5007D" stroke-width="1.5"/>
           <text x="795" y="264" text-anchor="middle" style="fill:#97144D;font-weight:700;font-size:14px">🔴 Final sign-off</text>
@@ -379,7 +381,7 @@
           <path class="ln" d="M480,384 V452" marker-end="url(#ah2)"/>
           <path class="ln" d="M795,384 V442 H560 V452" marker-end="url(#ah2)"/>
         </svg>
-        <p class="meta" style="margin-top:10px">Read it left-to-right: the <b>AI prepares every item</b>, then routes by risk. 🟢 <b>Exception check</b> pulls in a human only for odd cases (most items skip it). 🟠 <b>Manager review</b> is a durable sign-off that can wait hours or days and resume where it left off. 🔴 <b>Final sign-off</b> is a quick yes/no before the one irreversible step. <b>Speed where it's safe, control where it matters</b> — every decision is logged for audit.</p>
+        <p class="meta" style="margin-top:10px">Read it left-to-right: the <b>AI prepares every item</b>, then routes by risk to <b>one</b> gate. 🟢 <b>Exception check</b> (manual email) pulls in a human for odd cases. 🟠 <b>Maker review</b> (onboarding) holds the run for a human approve/reject, auto-approving if the review window lapses. 🔴 <b>Final sign-off</b> (contract note) is a quick yes/no before the one irreversible write. <b>Speed where it's safe, control where it matters</b> — every decision is logged for audit.</p>
       </div>
     </section>
 
@@ -389,25 +391,21 @@
         <p>All three gate types feed <b>one review queue</b> and resume through <b>one endpoint</b> — backed live by the workflow's native <code>request_info</code> pause and the dashboard's <code>/api/hitl/decision</code> resume. The gate is chosen per function by <b>reversibility × latency × risk</b>. The cards below are a representative snapshot; the live, wired queue runs in the dashboard.</p>
 
         <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:4px 0 16px">
-          <span style="padding:5px 10px;border-radius:8px;background:#fdf2f7;border:1px solid var(--line);font-size:11.5px;font-weight:600">Pre-onboard</span>
+          <span style="padding:5px 10px;border-radius:8px;background:#fdf2f7;border:1px solid var(--line);font-size:11.5px;font-weight:600">Email</span>
           <span style="color:var(--muted)">→</span>
-          <span style="padding:5px 10px;border-radius:8px;background:#fdf2f7;border:1px solid var(--line);font-size:11.5px;font-weight:600">Form verify <span style="color:var(--ok);font-weight:800">· L3</span></span>
+          <span style="padding:5px 10px;border-radius:8px;background:#fdf2f7;border:1px solid var(--line);font-size:11.5px;font-weight:600">Classify intent</span>
           <span style="color:var(--muted)">→</span>
-          <span style="padding:5px 10px;border-radius:8px;background:#fdf2f7;border:1px solid var(--line);font-size:11.5px;font-weight:600">Form compare <span style="color:var(--ok);font-weight:800">· L3</span></span>
+          <span style="padding:5px 10px;border-radius:8px;background:#fdf2f7;border:1px solid var(--line);font-size:11.5px;font-weight:600">HITL gate (one per email) — Contract <span style="color:var(--magenta);font-weight:800">L1</span> · Onboarding <span style="color:#b5740f;font-weight:800">L2</span> · Manual <span style="color:var(--ok);font-weight:800">L3</span></span>
           <span style="color:var(--muted)">→</span>
-          <span style="padding:5px 10px;border-radius:8px;background:#fdf2f7;border:1px solid var(--line);font-size:11.5px;font-weight:600">Contract note <span style="color:var(--ok);font-weight:800">· L3</span></span>
-          <span style="color:var(--muted)">→</span>
-          <span style="padding:5px 10px;border-radius:8px;background:#fdf2f7;border:1px solid var(--line);font-size:11.5px;font-weight:600">Maker review <span style="color:#b5740f;font-weight:800">· L2</span></span>
-          <span style="color:var(--muted)">→</span>
-          <span style="padding:5px 10px;border-radius:8px;background:#fdf2f7;border:1px solid var(--line);font-size:11.5px;font-weight:600">Final commit <span style="color:var(--magenta);font-weight:800">· L1</span></span>
+          <span style="padding:5px 10px;border-radius:8px;background:#fdf2f7;border:1px solid var(--line);font-size:11.5px;font-weight:600">Specialist runs</span>
           <span style="color:var(--muted)">→</span>
           <span style="padding:5px 10px;border-radius:8px;background:#fdf2f7;border:1px solid var(--line);font-size:11.5px;font-weight:600">Write output</span>
         </div>
 
         <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px">
-          <span style="font-size:11.5px"><span style="display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;padding:2px 7px;border-radius:9px;background:#fdeaf4;color:var(--magenta);border:1px solid #f4c8e0">L1</span> Function approval — fast, irreversible confirm</span>
-          <span style="font-size:11.5px"><span style="display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;padding:2px 7px;border-radius:9px;background:#fbf1e0;color:#b5740f;border:1px solid #f0dcb0">L2</span> Checkpointed wait — durable, hours/days</span>
-          <span style="font-size:11.5px"><span style="display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;padding:2px 7px;border-radius:9px;background:#e8f7ef;color:var(--ok);border:1px solid #bfe7d2">L3</span> Conditional gate — exceptions only</span>
+          <span style="font-size:11.5px"><span style="display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;padding:2px 7px;border-radius:9px;background:#fdeaf4;color:var(--magenta);border:1px solid #f4c8e0">L1</span> Final sign-off — quick confirm before the one irreversible write (contract note → PIS)</span>
+          <span style="font-size:11.5px"><span style="display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;padding:2px 7px;border-radius:9px;background:#fbf1e0;color:#b5740f;border:1px solid #f0dcb0">L2</span> Maker review — durable approve/reject of the onboarding verdict</span>
+          <span style="font-size:11.5px"><span style="display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;padding:2px 7px;border-radius:9px;background:#e8f7ef;color:var(--ok);border:1px solid #bfe7d2">L3</span> Exception check — a human decides what to do with an unclassified email</span>
         </div>
 
         <div id="rqStats" style="font-weight:700;font-size:13px;color:var(--maroon-deep);margin-bottom:10px">—</div>
@@ -415,11 +413,11 @@
         <div style="display:grid;gap:10px">
           <div data-rq data-state="await" style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fff;display:flex;flex-direction:column;gap:8px">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-              <div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;padding:2px 7px;border-radius:9px;background:#e8f7ef;color:var(--ok);border:1px solid #bfe7d2">L3</span><b>Form verification</b></div>
+              <div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;padding:2px 7px;border-radius:9px;background:#fdeaf4;color:var(--magenta);border:1px solid #f4c8e0">L1</span><b>Contract note · final sign-off</b></div>
               <span data-status style="background:#fdf2f7;color:var(--maroon-deep);border:1px solid var(--line);font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px">⏸ Awaiting</span>
             </div>
-            <div class="meta" style="font-size:12.5px">Trigger: OCR confidence 0.62 &lt; 0.80 threshold on mandatory field</div>
-            <div style="font-family:monospace;font-size:12px;background:#faf6f8;border:1px solid var(--line);border-radius:8px;padding:6px 9px">field PAN = ABCPK1234F · doc form_A.pdf</div>
+            <div class="meta" style="font-size:12.5px">Gate: approve before the pipe-delimited PIS upload file is written to <code>contract-notes-output</code> — irreversible regulatory output.</div>
+            <div style="font-family:monospace;font-size:12px;background:#faf6f8;border:1px solid var(--line);border-radius:8px;padding:6px 9px">intent=contract_note · attachments=1 · → PIS .txt + .json</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button data-act="approved" style="border:1px solid #bfe7d2;background:#e8f7ef;color:var(--ok);font-weight:700;font-size:12.5px;padding:6px 14px;border-radius:8px;cursor:pointer">Approve</button>
               <button data-act="rejected" style="border:1px solid #f3c2cc;background:#fdeaee;color:var(--fail);font-weight:700;font-size:12.5px;padding:6px 14px;border-radius:8px;cursor:pointer">Reject</button>
@@ -428,11 +426,11 @@
 
           <div data-rq data-state="await" style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fff;display:flex;flex-direction:column;gap:8px">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-              <div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;padding:2px 7px;border-radius:9px;background:#e8f7ef;color:var(--ok);border:1px solid #bfe7d2">L3</span><b>Contract note</b></div>
+              <div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;padding:2px 7px;border-radius:9px;background:#fbf1e0;color:#b5740f;border:1px solid #f0dcb0">L2</span><b>Merchant onboarding · maker review</b></div>
               <span data-status style="background:#fdf2f7;color:var(--maroon-deep);border:1px solid var(--line);font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px">⏸ Awaiting</span>
             </div>
-            <div class="meta" style="font-size:12.5px">Trigger: ISIN not found in NSE/BSE security master</div>
-            <div style="font-family:monospace;font-size:12px;background:#faf6f8;border:1px solid var(--line);border-radius:8px;padding:6px 9px">ISIN INE0XX01234 · Qty 5,000 · ₹ 48,20,000</div>
+            <div class="meta" style="font-size:12.5px">Gate: approve the web-portal vs handwritten verification verdict before the onboarding report is written.</div>
+            <div style="font-family:monospace;font-size:12px;background:#faf6f8;border:1px solid var(--line);border-radius:8px;padding:6px 9px">intent=pre_onboarding · 2 forms · match 0.82 → review</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button data-act="approved" style="border:1px solid #bfe7d2;background:#e8f7ef;color:var(--ok);font-weight:700;font-size:12.5px;padding:6px 14px;border-radius:8px;cursor:pointer">Approve</button>
               <button data-act="rejected" style="border:1px solid #f3c2cc;background:#fdeaee;color:var(--fail);font-weight:700;font-size:12.5px;padding:6px 14px;border-radius:8px;cursor:pointer">Reject</button>
@@ -441,29 +439,16 @@
 
           <div data-rq data-state="await" style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fff;display:flex;flex-direction:column;gap:8px">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-              <div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;padding:2px 7px;border-radius:9px;background:#fbf1e0;color:#b5740f;border:1px solid #f0dcb0">L2</span><b>Maker review (KYC)</b></div>
+              <div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;padding:2px 7px;border-radius:9px;background:#e8f7ef;color:var(--ok);border:1px solid #bfe7d2">L3</span><b>Manual / unclassified · exception</b></div>
               <span data-status style="background:#fdf2f7;color:var(--maroon-deep);border:1px solid var(--line);font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px">⏸ Awaiting</span>
             </div>
-            <div class="meta" style="font-size:12.5px">Trigger: maker sign-off · <b>checkpointed</b>, resumes from saved state · waited 4h 12m</div>
-            <div style="font-family:monospace;font-size:12px;background:#faf6f8;border:1px solid var(--line);border-radius:8px;padding:6px 9px">customer KAS-2291 · checkpoint ckpt_7f3a · stage=maker_review</div>
+            <div class="meta" style="font-size:12.5px">Gate: no automated path — a human decides, and can re-route the email to another intent before it runs.</div>
+            <div style="font-family:monospace;font-size:12px;background:#faf6f8;border:1px solid var(--line);border-radius:8px;padding:6px 9px">intent=manual · subject="(unrecognised request)"</div>
+            <textarea data-editbox style="display:none;font-family:monospace;font-size:12px;width:100%;border:1px dashed var(--magenta-soft);border-radius:8px;padding:6px 9px;background:#fff;resize:vertical" rows="2">contract_note</textarea>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button data-act="approved" style="border:1px solid #bfe7d2;background:#e8f7ef;color:var(--ok);font-weight:700;font-size:12.5px;padding:6px 14px;border-radius:8px;cursor:pointer">Approve</button>
               <button data-act="rejected" style="border:1px solid #f3c2cc;background:#fdeaee;color:var(--fail);font-weight:700;font-size:12.5px;padding:6px 14px;border-radius:8px;cursor:pointer">Reject</button>
-            </div>
-          </div>
-
-          <div data-rq data-state="await" style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fff;display:flex;flex-direction:column;gap:8px">
-            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-              <div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;padding:2px 7px;border-radius:9px;background:#fdeaf4;color:var(--magenta);border:1px solid #f4c8e0">L1</span><b>Final commit to core</b></div>
-              <span data-status style="background:#fdf2f7;color:var(--maroon-deep);border:1px solid var(--line);font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px">⏸ Awaiting</span>
-            </div>
-            <div class="meta" style="font-size:12.5px">Trigger: irreversible write — function approval required before the tool runs</div>
-            <div style="font-family:monospace;font-size:12px;background:#faf6f8;border:1px solid var(--line);border-radius:8px;padding:6px 9px">commit_onboarding(customer_id="KAS-2291", payload={...})</div>
-            <textarea data-editbox style="display:none;font-family:monospace;font-size:12px;width:100%;border:1px dashed var(--magenta-soft);border-radius:8px;padding:6px 9px;background:#fff;resize:vertical" rows="3">{"customer_id":"KAS-2291","segment":"NSE-CASH","limit":5000000}</textarea>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <button data-act="approved" style="border:1px solid #bfe7d2;background:#e8f7ef;color:var(--ok);font-weight:700;font-size:12.5px;padding:6px 14px;border-radius:8px;cursor:pointer">Approve</button>
-              <button data-act="rejected" style="border:1px solid #f3c2cc;background:#fdeaee;color:var(--fail);font-weight:700;font-size:12.5px;padding:6px 14px;border-radius:8px;cursor:pointer">Reject</button>
-              <button data-edit style="border:1px solid var(--line);background:#fff;color:var(--muted);font-weight:700;font-size:12.5px;padding:6px 14px;border-radius:8px;cursor:pointer">Edit args</button>
+              <button data-edit style="border:1px solid var(--line);background:#fff;color:var(--muted);font-weight:700;font-size:12.5px;padding:6px 14px;border-radius:8px;cursor:pointer">Edit · re-route</button>
             </div>
           </div>
         </div>
