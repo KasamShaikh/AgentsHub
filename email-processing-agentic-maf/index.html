@@ -294,7 +294,6 @@
         <table id="ossTable">
           <thead><tr><th style="width:46px">Pick</th><th>Layer</th><th>OSS option</th><th>License</th><th>Role alongside MAF</th></tr></thead>
           <tbody>
-            <tr><td><input type="checkbox" data-oss="presidio" style="width:17px;height:17px;accent-color:var(--maroon);cursor:pointer"></td><td><b>PII protection</b> <span style="font-size:10px;font-weight:700;color:#1a8f5e;background:#e8f7ef;padding:2px 7px;border-radius:10px">recommended</span></td><td>Microsoft Presidio</td><td>MIT</td><td>Detect &amp; redact PAN / Aadhaar / account numbers before the LLM call; un-redact in deterministic code</td></tr>
             <tr><td><input type="checkbox" data-oss="otel" style="width:17px;height:17px;accent-color:var(--maroon);cursor:pointer"></td><td><b>Observability &amp; audit</b> <span style="font-size:10px;font-weight:700;color:#1a8f5e;background:#e8f7ef;padding:2px 7px;border-radius:10px">recommended</span></td><td>OpenTelemetry + Langfuse <span class="meta">(or Arize Phoenix)</span></td><td>Apache-2.0 / MIT</td><td>MAF emits OTel spans natively → replayable prompt / response / tool audit trail</td></tr>
             <tr><td><input type="checkbox" data-oss="docling" style="width:17px;height:17px;accent-color:var(--maroon);cursor:pointer"></td><td><b>OCR / extraction</b> <span style="font-size:10px;font-weight:700;color:#1a8f5e;background:#e8f7ef;padding:2px 7px;border-radius:10px">recommended</span></td><td>Docling / PaddleOCR / Tesseract</td><td>MIT / Apache-2.0</td><td>On-prem OCR tool or fallback behind the same interface as Document Intelligence</td></tr>
             <tr><td><input type="checkbox" data-oss="vllm" style="width:17px;height:17px;accent-color:var(--maroon);cursor:pointer"></td><td><b>LLM (data sovereignty)</b></td><td>Mistral / Phi / Qwen via vLLM or Ollama</td><td>Apache-2.0 / MIT</td><td>MAF points its chat client at a self-hosted OpenAI-compatible endpoint</td></tr>
@@ -305,12 +304,10 @@
           </tbody>
         </table>
         <div class="callout" style="margin-top:12px"><b>Suggested first slice</b> (zero infra change, all in-process, MAF intact):
-        <b>Presidio + OpenTelemetry/Langfuse + Docling fallback</b>. License traps to avoid for BFSI: n8n (fair-code),
+        <b>OpenTelemetry/Langfuse + Docling fallback</b>. License traps to avoid for BFSI: n8n (fair-code),
         HashiCorp Vault (BSL) and Llama weights (non-OSI community licence).</div>
       </div>
     </section>
-
-    <div class="footnote">Proof-of-concept. Browser automation to the external onboarding application is intentionally simulated; the agent pipeline and outputs are real.</div>
   </div>
 
   <script>
