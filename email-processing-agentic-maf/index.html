@@ -308,6 +308,126 @@
         HashiCorp Vault (BSL) and Llama weights (non-OSI community licence).</div>
       </div>
     </section>
+
+    <section class="card" id="hitlMock">
+      <h2>🧑‍⚖️ Human-in-the-loop · unified review queue <span style="font-size:10px;font-weight:700;background:#fdf2f7;border:1px solid var(--line);color:var(--maroon-deep);padding:3px 9px;border-radius:20px;letter-spacing:.4px;text-transform:none">visual mock</span></h2>
+      <div class="body">
+        <p>All three gate types feed <b>one review queue</b> and resume through <b>one endpoint</b>. The gate is chosen per function by <b>reversibility × latency × risk</b>. This is a static mock — the buttons update cards locally; no backend is called.</p>
+
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:4px 0 16px">
+          <span style="padding:5px 10px;border-radius:8px;background:#fdf2f7;border:1px solid var(--line);font-size:11.5px;font-weight:600">Pre-onboard</span>
+          <span style="color:var(--muted)">→</span>
+          <span style="padding:5px 10px;border-radius:8px;background:#fdf2f7;border:1px solid var(--line);font-size:11.5px;font-weight:600">Form verify <span style="color:var(--ok);font-weight:800">· L3</span></span>
+          <span style="color:var(--muted)">→</span>
+          <span style="padding:5px 10px;border-radius:8px;background:#fdf2f7;border:1px solid var(--line);font-size:11.5px;font-weight:600">Form compare <span style="color:var(--ok);font-weight:800">· L3</span></span>
+          <span style="color:var(--muted)">→</span>
+          <span style="padding:5px 10px;border-radius:8px;background:#fdf2f7;border:1px solid var(--line);font-size:11.5px;font-weight:600">Contract note <span style="color:var(--ok);font-weight:800">· L3</span></span>
+          <span style="color:var(--muted)">→</span>
+          <span style="padding:5px 10px;border-radius:8px;background:#fdf2f7;border:1px solid var(--line);font-size:11.5px;font-weight:600">Maker review <span style="color:#b5740f;font-weight:800">· L2</span></span>
+          <span style="color:var(--muted)">→</span>
+          <span style="padding:5px 10px;border-radius:8px;background:#fdf2f7;border:1px solid var(--line);font-size:11.5px;font-weight:600">Final commit <span style="color:var(--magenta);font-weight:800">· L1</span></span>
+          <span style="color:var(--muted)">→</span>
+          <span style="padding:5px 10px;border-radius:8px;background:#fdf2f7;border:1px solid var(--line);font-size:11.5px;font-weight:600">Write output</span>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+          <span style="font-size:11.5px"><span style="display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;padding:2px 7px;border-radius:9px;background:#fdeaf4;color:var(--magenta);border:1px solid #f4c8e0">L1</span> Function approval — fast, irreversible confirm</span>
+          <span style="font-size:11.5px"><span style="display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;padding:2px 7px;border-radius:9px;background:#fbf1e0;color:#b5740f;border:1px solid #f0dcb0">L2</span> Checkpointed wait — durable, hours/days</span>
+          <span style="font-size:11.5px"><span style="display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;padding:2px 7px;border-radius:9px;background:#e8f7ef;color:var(--ok);border:1px solid #bfe7d2">L3</span> Conditional gate — exceptions only</span>
+        </div>
+
+        <div id="rqStats" style="font-weight:700;font-size:13px;color:var(--maroon-deep);margin-bottom:10px">—</div>
+
+        <div style="display:grid;gap:10px">
+          <div data-rq data-state="await" style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fff;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+              <div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;padding:2px 7px;border-radius:9px;background:#e8f7ef;color:var(--ok);border:1px solid #bfe7d2">L3</span><b>Form verification</b></div>
+              <span data-status style="background:#fdf2f7;color:var(--maroon-deep);border:1px solid var(--line);font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px">⏸ Awaiting</span>
+            </div>
+            <div class="meta" style="font-size:12.5px">Trigger: OCR confidence 0.62 &lt; 0.80 threshold on mandatory field</div>
+            <div style="font-family:monospace;font-size:12px;background:#faf6f8;border:1px solid var(--line);border-radius:8px;padding:6px 9px">field PAN = ABCPK1234F · doc form_A.pdf</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button data-act="approved" style="border:1px solid #bfe7d2;background:#e8f7ef;color:var(--ok);font-weight:700;font-size:12.5px;padding:6px 14px;border-radius:8px;cursor:pointer">Approve</button>
+              <button data-act="rejected" style="border:1px solid #f3c2cc;background:#fdeaee;color:var(--fail);font-weight:700;font-size:12.5px;padding:6px 14px;border-radius:8px;cursor:pointer">Reject</button>
+            </div>
+          </div>
+
+          <div data-rq data-state="await" style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fff;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+              <div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;padding:2px 7px;border-radius:9px;background:#e8f7ef;color:var(--ok);border:1px solid #bfe7d2">L3</span><b>Contract note</b></div>
+              <span data-status style="background:#fdf2f7;color:var(--maroon-deep);border:1px solid var(--line);font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px">⏸ Awaiting</span>
+            </div>
+            <div class="meta" style="font-size:12.5px">Trigger: ISIN not found in NSE/BSE security master</div>
+            <div style="font-family:monospace;font-size:12px;background:#faf6f8;border:1px solid var(--line);border-radius:8px;padding:6px 9px">ISIN INE0XX01234 · Qty 5,000 · ₹ 48,20,000</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button data-act="approved" style="border:1px solid #bfe7d2;background:#e8f7ef;color:var(--ok);font-weight:700;font-size:12.5px;padding:6px 14px;border-radius:8px;cursor:pointer">Approve</button>
+              <button data-act="rejected" style="border:1px solid #f3c2cc;background:#fdeaee;color:var(--fail);font-weight:700;font-size:12.5px;padding:6px 14px;border-radius:8px;cursor:pointer">Reject</button>
+            </div>
+          </div>
+
+          <div data-rq data-state="await" style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fff;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+              <div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;padding:2px 7px;border-radius:9px;background:#fbf1e0;color:#b5740f;border:1px solid #f0dcb0">L2</span><b>Maker review (KYC)</b></div>
+              <span data-status style="background:#fdf2f7;color:var(--maroon-deep);border:1px solid var(--line);font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px">⏸ Awaiting</span>
+            </div>
+            <div class="meta" style="font-size:12.5px">Trigger: maker sign-off · <b>checkpointed</b>, resumes from saved state · waited 4h 12m</div>
+            <div style="font-family:monospace;font-size:12px;background:#faf6f8;border:1px solid var(--line);border-radius:8px;padding:6px 9px">customer KAS-2291 · checkpoint ckpt_7f3a · stage=maker_review</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button data-act="approved" style="border:1px solid #bfe7d2;background:#e8f7ef;color:var(--ok);font-weight:700;font-size:12.5px;padding:6px 14px;border-radius:8px;cursor:pointer">Approve</button>
+              <button data-act="rejected" style="border:1px solid #f3c2cc;background:#fdeaee;color:var(--fail);font-weight:700;font-size:12.5px;padding:6px 14px;border-radius:8px;cursor:pointer">Reject</button>
+            </div>
+          </div>
+
+          <div data-rq data-state="await" style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fff;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+              <div style="display:flex;align-items:center;gap:8px"><span style="display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;padding:2px 7px;border-radius:9px;background:#fdeaf4;color:var(--magenta);border:1px solid #f4c8e0">L1</span><b>Final commit to core</b></div>
+              <span data-status style="background:#fdf2f7;color:var(--maroon-deep);border:1px solid var(--line);font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px">⏸ Awaiting</span>
+            </div>
+            <div class="meta" style="font-size:12.5px">Trigger: irreversible write — function approval required before the tool runs</div>
+            <div style="font-family:monospace;font-size:12px;background:#faf6f8;border:1px solid var(--line);border-radius:8px;padding:6px 9px">commit_onboarding(customer_id="KAS-2291", payload={...})</div>
+            <textarea data-editbox style="display:none;font-family:monospace;font-size:12px;width:100%;border:1px dashed var(--magenta-soft);border-radius:8px;padding:6px 9px;background:#fff;resize:vertical" rows="3">{"customer_id":"KAS-2291","segment":"NSE-CASH","limit":5000000}</textarea>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button data-act="approved" style="border:1px solid #bfe7d2;background:#e8f7ef;color:var(--ok);font-weight:700;font-size:12.5px;padding:6px 14px;border-radius:8px;cursor:pointer">Approve</button>
+              <button data-act="rejected" style="border:1px solid #f3c2cc;background:#fdeaee;color:var(--fail);font-weight:700;font-size:12.5px;padding:6px 14px;border-radius:8px;cursor:pointer">Reject</button>
+              <button data-edit style="border:1px solid var(--line);background:#fff;color:var(--muted);font-weight:700;font-size:12.5px;padding:6px 14px;border-radius:8px;cursor:pointer">Edit args</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <script>
+        (function(){
+          var root=document.getElementById('hitlMock');
+          if(!root) return;
+          function recount(){
+            var a=0,ap=0,rj=0;
+            root.querySelectorAll('[data-rq]').forEach(function(c){
+              var s=c.getAttribute('data-state');
+              if(s==='approved')ap++; else if(s==='rejected')rj++; else a++;
+            });
+            root.querySelector('#rqStats').textContent=a+' awaiting · '+ap+' approved · '+rj+' rejected';
+          }
+          root.querySelectorAll('[data-act]').forEach(function(btn){
+            btn.addEventListener('click',function(){
+              var card=btn.closest('[data-rq]'); if(!card) return;
+              var act=btn.getAttribute('data-act');
+              card.setAttribute('data-state',act);
+              var st=card.querySelector('[data-status]');
+              if(act==='approved'){st.textContent='✓ Approved';st.style.background='#e8f7ef';st.style.color='var(--ok)';st.style.borderColor='#bfe7d2';}
+              else{st.textContent='✕ Rejected';st.style.background='#fdeaee';st.style.color='var(--fail)';st.style.borderColor='#f3c2cc';}
+              card.querySelectorAll('[data-act],[data-edit]').forEach(function(b){b.disabled=true;b.style.opacity='.45';b.style.cursor='default';});
+              recount();
+            });
+          });
+          root.querySelectorAll('[data-edit]').forEach(function(btn){
+            btn.addEventListener('click',function(){
+              var box=btn.closest('[data-rq]').querySelector('[data-editbox]');
+              if(box) box.style.display=(box.style.display==='none'||!box.style.display)?'block':'none';
+            });
+          });
+          recount();
+        })();
+      </script>
+    </section>
   </div>
 
   <script>
