@@ -112,8 +112,12 @@
         identical to v1, but the agent runtime is now the open-source <b>Microsoft Agent Framework</b> running
         <i>in-process</i> instead of the Azure AI Agents SDK and the Foundry-hosted agent runtime. The model
         (<code>gpt-mini-ks</code>), Logic App ingestion, Document Intelligence, Blob storage and every output file are
-        <b>unchanged</b>. Agents are now defined in code and their tools are invoked <b>automatically</b> by the
-        framework — there is no server-side <code>threads</code>/<code>runs</code> object and no manual
+        <b>unchanged</b>. Agents are now defined in code and wired into a true MAF <b>Workflow</b> graph: the
+        orchestrator classifies the email, a <b>human-in-the-loop gate</b> pauses the run natively
+        (<code>request_info</code>) for approval, then switch-case routing hands off to the specialist executor that
+        runs the deterministic pipeline. Tools are invoked <b>automatically</b> by the framework (e.g. the contract
+        agent's <code>lookup_isin</code> security-master lookup), and the workflow checkpoints durably so a paused
+        review can resume later. There is no server-side <code>threads</code>/<code>runs</code> object and no manual
         tool-output plumbing. This is a separate copy of the app; the original v1 deployment and its Azure resources
         are left exactly as they are.</div>
       </div>
@@ -148,7 +152,7 @@
           <rect x="300" y="118" width="360" height="64" rx="14" fill="url(#og)"/>
           <text x="480" y="142" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">MAF Orchestrator · gpt-mini-ks</text>
           <text x="480" y="160" text-anchor="middle" fill="#fff" font-size="11" opacity=".9">in-process agent · classifies intent</text>
-          <text x="480" y="174" text-anchor="middle" fill="#fff" font-size="11" opacity=".9">auto-invokes its pipeline tool</text>
+          <text x="480" y="174" text-anchor="middle" fill="#fff" font-size="11" opacity=".9">workflow routes · HITL gate pauses</text>
           <path class="ln" d="M480,76 V116" marker-end="url(#ah)"/>
           <text class="lbl" x="490" y="101">payload</text>
 
@@ -194,7 +198,7 @@
           <path class="ln" d="M165,362 V455 H360 V468" marker-end="url(#ah)"/>
           <path class="ln" d="M480,412 V468" marker-end="url(#ah)"/>
         </svg>
-        <p class="meta" style="margin-top:10px">Email in → Logic App stages attachments to Blob → the in-process <b>Microsoft Agent Framework</b> orchestrator (gpt-mini-ks) classifies the intent and auto-invokes its tool → code routes to a specialist → the result is written back to Blob. Every call uses Entra managed identity — no keys.</p>
+        <p class="meta" style="margin-top:10px">Email in → Logic App stages attachments to Blob → an in-process <b>Microsoft Agent Framework</b> <b>workflow</b> runs: the orchestrator (gpt-mini-ks) classifies the intent, a <b>human-in-the-loop gate</b> pauses for approval, then switch-case routing hands off to the specialist executor that runs the deterministic pipeline → the result is written back to Blob. Every call uses Entra managed identity — no keys.</p>
       </div>
     </section>
 
@@ -205,9 +209,11 @@
           <p><b>LLM:</b> a GPT‑class small model deployed on <b>Azure AI Foundry</b> (deployment <code>gpt-mini-ks</code>),
           chosen for low latency and cost on high-volume mailbox traffic. <b>Unchanged from v1.</b></p>
           <p><b>Agent runtime (v2):</b> the open-source <b>Microsoft Agent Framework</b>. Agents are defined in code as
-          in-process <code>ChatAgent</code> objects with their own instructions and tools; the framework invokes a
-          tool automatically and feeds the result back — no Foundry-hosted threads/runs and no manual tool-output
-          loop. The model is still served by Foundry <code>gpt-mini-ks</code>.</p>
+          in-process <code>Agent</code> objects with their own instructions and tools, wired into a true MAF
+          <b>Workflow</b> graph (executors + switch-case edges). The framework invokes real tools automatically
+          (e.g. the contract agent's <code>lookup_isin</code>), and the workflow pauses natively for human approval
+          via <code>request_info</code> with durable checkpointing. The model is still served by Foundry
+          <code>gpt-mini-ks</code>.</p>
           <p><b>OCR:</b> <b>Azure AI Document Intelligence</b> (<code>prebuilt-layout</code>, markdown output) turns scanned
           PDFs and images into text the agents can read.</p>
           <p><b>Auth:</b> Microsoft Entra <b>managed identity</b> only — no keys. Blob shared-key access is disabled.</p>
@@ -233,8 +239,8 @@
         <table>
           <thead><tr><th>Agent</th><th>Role</th><th>Tools</th></tr></thead>
           <tbody>
-            <tr><td><b>orchestrator-ks</b></td><td>Reads each email and classifies its intent (contract note / merchant pre-onboarding / manual). Routes to the right specialist.</td><td>MAF <code>@ai_function</code> tool (<code>run_contract_pipeline</code>), auto-invoked in-process</td></tr>
-            <tr><td><b>contract-note-ks</b></td><td>Extracts trades from broker contract-note attachments, resolves security identifiers, and produces the pipe-delimited upload file.</td><td>in-process agent</td></tr>
+            <tr><td><b>orchestrator-ks</b></td><td>Reads each email and classifies its intent (contract note / merchant pre-onboarding / manual). The MAF workflow graph then routes to the right specialist.</td><td>none (classification only)</td></tr>
+            <tr><td><b>contract-note-ks</b></td><td>Extracts trades from broker contract-note attachments, resolves security identifiers, and produces the pipe-delimited upload file.</td><td>real MAF tool <code>lookup_isin</code> (NSE/BSE security master)</td></tr>
             <tr><td><b>pre-onboarding-ks</b></td><td>Reads merchant onboarding documents and extracts KYC, registration, address and bank fields.</td><td>none (pure extraction)</td></tr>
             <tr><td><b>form-compare-ks</b></td><td>Aligns two versions of a merchant form (web-portal vs handwritten) field-by-field for cross-verification.</td><td>none</td></tr>
             <tr><td><b>form-verification-ks</b></td><td>Validates extracted fields — required-field and format/regex checks — and returns a pass/fail verdict.</td><td>in-process agent</td></tr>
@@ -250,8 +256,9 @@
         <ol class="steps">
           <li><b>Email arrives</b> A new mail hits the Office 365 inbox and triggers the <code>logic-email-ks</code> Logic App.</li>
           <li><b>Ingest &amp; stage</b> The Logic App saves each attachment to the <code>incoming-attachments</code> blob container and composes a JSON payload (subject, body, blob paths).</li>
-          <li><b>Classify intent</b> The in-process <b>Microsoft Agent Framework</b> orchestrator (<code>gpt-mini-ks</code>) reads the payload and classifies it: <code>contract_note</code>, <code>pre_onboarding</code> or <code>manual</code>. For a contract note it <b>auto-invokes</b> its <code>run_contract_pipeline</code> tool — the framework runs the real pipeline and feeds the summary back, with no manual tool-output step.</li>
-          <li><b>Route to a specialist</b> Code-driven routing hands the work to the matching in-process agent — the model decides the intent, the app decides the wiring.</li>
+          <li><b>Classify intent</b> The in-process <b>Microsoft Agent Framework</b> orchestrator executor (<code>gpt-mini-ks</code>) reads the payload and classifies it: <code>contract_note</code>, <code>pre_onboarding</code> or <code>manual</code>.</li>
+          <li><b>Human-in-the-loop gate</b> The workflow pauses natively (<code>request_info</code>) at an approval gate — level by risk (🔴 L1 contract note · 🟠 L2 onboarding · 🟢 L3 manual). A reviewer can approve, reject or re-route from the dashboard; durable checkpointing lets the run wait and resume, and it auto-decides after a timeout so nothing hangs.</li>
+          <li><b>Route to a specialist</b> On approval, switch-case edges hand the work to the matching specialist executor — the model decides the intent, the workflow graph decides the wiring.</li>
           <li><b>Do the work</b> &nbsp;• <b>Contract note:</b> OCR → extract trades → resolve identifiers → build the pipe-delimited file.<br>&nbsp;• <b>Onboarding (demo):</b> OCR both forms → agent aligns fields → deterministic scorer computes match % and flags mismatches.</li>
           <li><b>Write output</b> The result lands in the <code>contract-notes-output</code> container (a <code>.txt</code> report + machine <code>.json</code>).</li>
           <li><b>Observe</b> Every step is streamed to the live dashboard over Server-Sent Events and saved as a replayable trace.</li>
@@ -377,9 +384,9 @@
     </section>
 
     <section class="card" id="hitlMock">
-      <h2>🧑‍⚖️ Human-in-the-loop · unified review queue <span style="font-size:10px;font-weight:700;background:#fdf2f7;border:1px solid var(--line);color:var(--maroon-deep);padding:3px 9px;border-radius:20px;letter-spacing:.4px;text-transform:none">visual mock</span></h2>
+      <h2>🧑‍⚖️ Human-in-the-loop · unified review queue <span style="font-size:10px;font-weight:700;background:#fdf2f7;border:1px solid var(--line);color:var(--maroon-deep);padding:3px 9px;border-radius:20px;letter-spacing:.4px;text-transform:none">snapshot · live in dashboard</span></h2>
       <div class="body">
-        <p>All three gate types feed <b>one review queue</b> and resume through <b>one endpoint</b>. The gate is chosen per function by <b>reversibility × latency × risk</b>. This is a static mock — the buttons update cards locally; no backend is called.</p>
+        <p>All three gate types feed <b>one review queue</b> and resume through <b>one endpoint</b> — backed live by the workflow's native <code>request_info</code> pause and the dashboard's <code>/api/hitl/decision</code> resume. The gate is chosen per function by <b>reversibility × latency × risk</b>. The cards below are a representative snapshot; the live, wired queue runs in the dashboard.</p>
 
         <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:4px 0 16px">
           <span style="padding:5px 10px;border-radius:8px;background:#fdf2f7;border:1px solid var(--line);font-size:11.5px;font-weight:600">Pre-onboard</span>
